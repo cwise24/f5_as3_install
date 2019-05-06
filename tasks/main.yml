@@ -1,0 +1,85 @@
+---
+# tasks file for lab_roles/f5_as3
+
+- name: Check if AS3 rpm exist
+  stat:
+    path: "{{ roles_d }}/f5_as3_install/files/{{ as3RPM }}"
+  register: as3_stat
+
+- name: Download rpm sha256 checksum
+  get_url:
+    url: https://github.com/F5Networks/f5-appsvcs-extension/raw/master/dist/latest/{{ as3Sha }}
+    dest: "{{ roles_d }}/f5_as3_install/files/{{ as3Sha }}"
+  when: as3_stat.stat.exists == False
+
+- name: Register sha256 output for verification
+  shell: cat "{{ roles_d }}/f5_as3_install/files/{{ as3Sha }}" |  awk -F " " '{print $1}'
+  register: shaSum
+  when: as3_stat.stat.exists == False
+
+
+- name: Download AS3 rpm from F5 Networks
+  get_url:
+    url: https://github.com/F5Networks/f5-appsvcs-extension/raw/master/dist/latest/{{ as3RPM }}
+    dest: "{{ roles_d }}/f5_as3_install/files/{{ as3RPM }}"
+    checksum: sha256:{{ shaSum.stdout }}
+  register: dl_stat
+  until: dl_stat.msg.find("OK")  != 1
+  retries: 3
+  delay: 10
+  when: as3_stat.stat.exists == False
+
+- name: Generate login token
+  uri:
+    url: "https://{{ f5_mgmt }}/mgmt/shared/authn/login"
+    method: POST
+    body_format: json
+    body: {"username": "{{ f5_u_cred }}", "password": "{{ f5_u_pass }}", "loginProviderName": "tmos"}
+    validate_certs: no
+  register: Auth_tok
+  delegate_to: localhost
+
+- name:  Check for AS3
+  uri:
+    url: "https://{{ f5_mgmt }}/mgmt/shared/appsvcs/info"
+    method: GET
+    body_format: json
+    headers:
+      Content-Type: application/json
+      X-F5-Auth-Token: "{{ Auth_tok.json.token.token }}"
+    validate_certs: no
+    status_code: 200,404
+  tags: as3check
+  register: returnd
+  delegate_to: localhost
+  ignore_errors: yes
+
+- name: Install AS3
+  bigip_iapplx_package:
+    package: "{{ roles_d }}/f5_as3_install/files/{{ as3RPM }}"
+    provider: "{{ provider }}"
+  delegate_to: localhost
+  when: returnd.status == 404
+
+- name:  Check for AS3 after install
+  uri:
+    url: "https://{{ f5_mgmt }}/mgmt/shared/appsvcs/info"
+    method: GET
+    body_format: json
+    headers:
+      Content-Type: application/json
+      X-F5-Auth-Token: "{{ Auth_tok.json.token.token }}"
+    validate_certs: no
+  tags: as3valid
+  register: as3_installd
+  delegate_to: localhost
+  until: as3_installd.status == 200
+  retries: 3
+  delay: 10
+
+- file:
+   path: "{{ roles_d }}/f5_as3_install/files/{{ item }}"
+   state: absent
+  with_items:
+    - "{{ as3Sha }}"
+    - "{{ as3RPM }}"
