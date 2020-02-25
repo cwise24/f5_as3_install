@@ -8,7 +8,7 @@
 
 - name: Download rpm sha256 checksum
   get_url:
-    url: https://github.com/F5Networks/f5-appsvcs-extension/raw/master/dist/latest/{{ as3Sha }}
+    url: https://github.com/F5Networks/f5-appsvcs-extension/releases/download/{{ as3Tag }}/{{ as3Sha }}
     dest: "{{ roles_d }}/f5_as3_install/files/{{ as3Sha }}"
   when: as3_stat.stat.exists == False
 
@@ -20,7 +20,7 @@
 
 - name: Download AS3 rpm from F5 Networks
   get_url:
-    url: https://github.com/F5Networks/f5-appsvcs-extension/raw/master/dist/latest/{{ as3RPM }}
+    url: https://github.com/F5Networks/f5-appsvcs-extension/releases/download/{{ as3Tag }}/{{ as3RPM }}
     dest: "{{ roles_d }}/f5_as3_install/files/{{ as3RPM }}"
     checksum: sha256:{{ shaSum.stdout }}
   register: dl_stat
