@@ -23,8 +23,9 @@ Variables needed for this role include:
 * Path to roles directory
 
 ```
-as3RPM: "f5-appsvcs-3.10.0-5.noarch.rpm"
-as3Sha: "f5-appsvcs-3.10.0-5.noarch.rpm.sha256"
+as3Tag: "v3.17.1"
+as3RPM: "f5-appsvcs-3.17.1-1.noarch.rpm"
+as3Sha: "f5-appsvcs-3.17.1-1.noarch.rpm.sha256"
 f5_mgmt: "<IP address>"
 f5_u_cred: "admin"
 f5_u_pass: "secret"
