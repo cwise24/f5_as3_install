@@ -15,6 +15,7 @@ Role Variables
 
 Variables needed for this role include:
 
+* AS3 version tag
 * AS3 RPM version number
 * AS3 checksum file name
 * F5 management IP Address
