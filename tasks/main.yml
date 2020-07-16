@@ -1,5 +1,33 @@
 ---
-# tasks file for lab_roles/f5_as3
+# tasks file for f5_as3_install
+
+- name: Check BIG IP tmos version >12
+  tags:
+    - tmos
+  uri:
+    url: "https://{{ hostvars[groups['adc'][0]]['ansible_host'] }}/mgmt/tm/sys/software/volume"
+    method: GET
+    force_basic_auth: yes
+    user: "{{ e_user}}"
+    password: "{{ e_pass }}"
+    validate_certs: no
+  register: tmos_ver
+  delegate_to: localhost
+
+- name: Set fact t_ver (tmos version)
+  set_fact:
+    t_ver: "{{ item }}"
+  loop: "{{ tmos_ver.json | json_query('items[*].version') }}"
+
+- name: Show t_ver 
+  debug:
+    msg: "PASS "
+  when: t_ver is version('12.1', '>=')
+
+- name: Version is not supported
+  fail:
+    msg: "This version is not supported, only tmos versions >=12.1"
+  when: t_ver is version('12.1', '<')
 
 - name: Check if AS3 rpm exist
   stat:
@@ -17,7 +45,6 @@
   register: shaSum
   when: as3_stat.stat.exists == False
 
-
 - name: Download AS3 rpm from F5 Networks
   get_url:
     url: https://github.com/F5Networks/f5-appsvcs-extension/releases/download/{{ as3Tag }}/{{ as3RPM }}
@@ -29,19 +56,38 @@
   delay: 10
   when: as3_stat.stat.exists == False
 
+- name: Check for 443 open
+  wait_for:
+    host: "{{ hostvars[groups['adc'][0]]['ansible_host'] }}"
+    port: 443
+    state: started
+    delay: 0
+    timeout: 10
+  ignore_errors: yes
+
 - name: Generate login token
+  tags:
+    - token
   uri:
-    url: "https://{{ f5_mgmt }}/mgmt/shared/authn/login"
+    url: "https://{{ hostvars[groups['adc'][0]]['ansible_host'] }}/mgmt/shared/authn/login"
     method: POST
     body_format: json
-    body: {"username": "{{ f5_u_cred }}", "password": "{{ f5_u_pass }}", "loginProviderName": "tmos"}
+    body:
+      {
+        "username": "{{e_user}}",
+        "password": "{{e_pass}}",
+        "loginProviderName": "tmos",
+      }
     validate_certs: no
   register: Auth_tok
+  retries: 4
+  delay: 15
+  until: Auth_tok.status == 200
   delegate_to: localhost
 
-- name:  Check for AS3
+- name: Check for AS3
   uri:
-    url: "https://{{ f5_mgmt }}/mgmt/shared/appsvcs/info"
+    url: "https://{{ hostvars[groups['adc'][0]]['ansible_host'] }}/mgmt/shared/appsvcs/info"
     method: GET
     body_format: json
     headers:
@@ -61,9 +107,18 @@
   delegate_to: localhost
   when: returnd.status == 404
 
-- name:  Check for AS3 after install
+- name: Check for 443 open
+  wait_for:
+    host: "{{ hostvars[groups['adc'][0]]['ansible_host'] }}"
+    port: 443
+    state: started
+    delay: 0
+    timeout: 10
+  ignore_errors: yes
+
+- name: Check for AS3 after install
   uri:
-    url: "https://{{ f5_mgmt }}/mgmt/shared/appsvcs/info"
+    url: "https://{{ hostvars[groups['adc'][0]]['ansible_host'] }}/mgmt/shared/appsvcs/info"
     method: GET
     body_format: json
     headers:
@@ -74,12 +129,12 @@
   register: as3_installd
   delegate_to: localhost
   until: as3_installd.status == 200
-  retries: 3
-  delay: 10
+  retries: 4
+  delay: 15
 
 - file:
-   path: "{{ roles_d }}/f5_as3_install/files/{{ item }}"
-   state: absent
+    path: "{{ roles_d }}/f5_as3_install/files/{{ item }}"
+    state: absent
   with_items:
     - "{{ as3Sha }}"
     - "{{ as3RPM }}"
