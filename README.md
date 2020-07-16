@@ -1,8 +1,7 @@
 F5 Application Services 3 (AS3) Install
 =========
 
-This role will install Declarative Onboarding using F5's API. First we determine tmos version and then if we have AS3 locally, if not the sha256 checksum is downloaded followed by <br >
-the AS3 rpm file from [F5's Github site](https://github.com/F5Networks/f5-appsvcs-extension/releases). Once downloaded and validated via sha256 checksum. Now focus is put on the F5 to see if AS3 exists, upon a 404 return (no AS3 installation exists)<br>
+This role will install Declarative Onboarding using F5's API. First we determine tmos version and then if we have AS3 locally, if not the sha256 checksum is downloaded followed by the AS3 rpm file from [F5's Github site](https://github.com/F5Networks/f5-appsvcs-extension/releases). <br/> Once downloaded and validated via sha256 checksum. Now focus is put on the F5 to see if AS3 exists, upon a 404 return (no AS3 installation exists)<br>
 the installation begins and is verified.  Optionally you can delete the downloaded files.
 
 Requirements
@@ -56,9 +55,6 @@ Example
 - hosts: [adc]
   gather_facts: no
   connection: local
-
-  vars_files:
-    - var_file.yml
 
   roles:
     - f5_as3_install
